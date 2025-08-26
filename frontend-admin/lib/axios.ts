@@ -8,6 +8,7 @@ const api = axios.create({
 });
 
 // Add request interceptor for authentication
+
 api.interceptors.request.use(
   (config) => {
     // For now, we'll use basic auth with the admin user
