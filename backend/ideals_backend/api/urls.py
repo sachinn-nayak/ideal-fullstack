@@ -6,7 +6,7 @@ from .views import (
     AdminUserViewSet, DashboardViewSet, CategoryViewSet, PaymentViewSet,
     OnlinePaymentViewSet, OfflinePaymentViewSet, CODPaymentViewSet,
     CustomTokenObtainPairView, RegisterView, LoginView, CustomerProfileView, LogoutView,
-    AddressViewSet
+    AddressViewSet, InvoiceViewSet
 )
 
 router = DefaultRouter()
@@ -21,6 +21,7 @@ router.register(r'online-payments', OnlinePaymentViewSet)
 router.register(r'offline-payments', OfflinePaymentViewSet)
 router.register(r'cod-payments', CODPaymentViewSet)
 router.register(r'addresses', AddressViewSet, basename='address')
+router.register(r'invoices', InvoiceViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),

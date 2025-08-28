@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Product, Order, OrderItem, Customer, AdminUser, Category, Payment, OnlinePayment, OfflinePayment, CODPayment, Address
+from .models import Product, Order, OrderItem, Customer, AdminUser, Category, Payment, OnlinePayment, OfflinePayment, CODPayment, Address, Invoice, ShipmentDetails
 from django.contrib.auth.password_validation import validate_password
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -65,6 +65,31 @@ class OrderItemListSerializer(serializers.ModelSerializer):
         fields = ['id', 'product_name', 'product_image', 'quantity', 'price', 'total']
 
 
+class ShipmentDetailsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ShipmentDetails
+        fields = '__all__'
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class InvoiceSerializer(serializers.ModelSerializer):
+    order_number = serializers.CharField(source='order.order_number', read_only=True)
+    customer_name = serializers.CharField(read_only=True)
+    customer_email = serializers.CharField(read_only=True)
+    shipping_address = serializers.CharField(read_only=True)
+    
+    class Meta:
+        model = Invoice
+        fields = [
+            'id', 'invoice_number', 'order', 'order_number', 'customer_name', 'customer_email',
+            'subtotal', 'tax_amount', 'shipping_amount', 'discount_amount', 'total_amount',
+            'status', 'invoice_date', 'due_date', 'notes', 'terms_conditions',
+            'company_name', 'company_address', 'company_phone', 'company_email', 'company_gst',
+            'pdf_file', 'shipping_address', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['invoice_number', 'invoice_date', 'created_at', 'updated_at']
+
+
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemListSerializer(many=True, read_only=True)
     customer_name = serializers.CharField(source='customer.name', read_only=True)
@@ -108,6 +133,8 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     billing_address = AddressSerializer(read_only=True)
     shipping_address = AddressSerializer(read_only=True)
     order_number = serializers.CharField(read_only=True)  # Make order_number read-only
+    invoice = InvoiceSerializer(read_only=True)
+    shipment_details = ShipmentDetailsSerializer(read_only=True)
 
     class Meta:
         model = Order
@@ -116,14 +143,16 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             'payment_method', 'advance_amount', 'advance_verified', 'billing_address', 
             'shipping_address', 'shipping_address_text', 'shipping_city', 'shipping_state', 
             'shipping_zip_code', 'shipping_country', 'tracking_number', 'estimated_delivery', 
-            'created_at', 'updated_at', 'items'
+            'created_at', 'updated_at', 'items', 'invoice', 'shipment_details'
         ]
 
 
 class OrderUpdateSerializer(serializers.ModelSerializer):
+    generate_invoice = serializers.BooleanField(write_only=True, required=False, default=False)
+    
     class Meta:
         model = Order
-        fields = ['status', 'payment_status', 'tracking_number', 'estimated_delivery']
+        fields = ['status', 'payment_status', 'tracking_number', 'estimated_delivery', 'generate_invoice']
 
 
 class AdminUserSerializer(serializers.ModelSerializer):
@@ -308,3 +337,8 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
         model = Customer
         fields = ['id', 'user', 'name', 'email', 'phone', 'address', 'created_at']
 
+
+class LoginSerializer(serializers.Serializer):
+    username = serializers.CharField(required=True)
+    password = serializers.CharField(required=True, write_only=True)
+    

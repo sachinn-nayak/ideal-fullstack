@@ -3,9 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { authAPI, ordersAPI } from '@/lib/api';
-import { FiPackage, FiCalendar, FiDollarSign, FiArrowRight } from 'react-icons/fi';
+import { FiPackage, FiCalendar, FiDollarSign, FiArrowRight, FiFileText, FiDownload, FiMail } from 'react-icons/fi';
 import Loader from '@/components/Loader';
 import EmptyState from '@/components/EmptyState';
+import { toast } from 'react-toastify';
 
 export default function OrdersPage() {
   const [user, setUser] = useState<any>(null);
@@ -54,6 +55,60 @@ export default function OrdersPage() {
 
   const getProductName = (productName: string) => {
     return productName || 'Product not found';
+  };
+
+  const handleDownloadInvoice = async (order: any) => {
+    if (!order.invoice) {
+      toast.error('No invoice available for this order');
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:8000/api/invoices/${order.invoice.id}/download/`);
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `invoice-${order.invoice.invoice_number}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        toast.success('Invoice downloaded successfully');
+      } else {
+        toast.error('Failed to download invoice');
+      }
+    } catch (error) {
+      toast.error('Error downloading invoice');
+      console.error('Error:', error);
+    }
+  };
+
+  const handleSendInvoice = async (order: any) => {
+    if (!order.invoice) {
+      toast.error('No invoice available for this order');
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:8000/api/invoices/${order.invoice.id}/send/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: order.customer_email }),
+      });
+
+      if (response.ok) {
+        toast.success('Invoice sent to your email');
+      } else {
+        toast.error('Failed to send invoice');
+      }
+    } catch (error) {
+      toast.error('Error sending invoice');
+      console.error('Error:', error);
+    }
   };
 
   if (loading) {
@@ -186,14 +241,41 @@ export default function OrdersPage() {
                       {order.tracking_number && (
                         <p>Tracking: {order.tracking_number}</p>
                       )}
+                      {order.invoice && (
+                        <p className="text-green-600 font-medium">
+                          Invoice: {order.invoice.invoice_number}
+                        </p>
+                      )}
                     </div>
-                    <Link
-                      href={`/orders/${order.id}`}
-                      className="mt-4 sm:mt-0 inline-flex items-center text-blue-600 hover:text-blue-700 font-medium transition-colors"
-                    >
-                      View Details
-                      <FiArrowRight className="w-4 h-4 ml-1" />
-                    </Link>
+                    <div className="mt-4 sm:mt-0 flex items-center space-x-2">
+                      {order.invoice && (
+                        <>
+                          <button
+                            onClick={() => handleDownloadInvoice(order)}
+                            className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                            title="Download Invoice"
+                          >
+                            <FiDownload className="w-4 h-4 mr-1" />
+                            Download
+                          </button>
+                          <button
+                            onClick={() => handleSendInvoice(order)}
+                            className="inline-flex items-center text-green-600 hover:text-green-700 font-medium transition-colors"
+                            title="Send Invoice"
+                          >
+                            <FiMail className="w-4 h-4 mr-1" />
+                            Send
+                          </button>
+                        </>
+                      )}
+                      <Link
+                        href={`/orders/${order.id}`}
+                        className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                      >
+                        View Details
+                        <FiArrowRight className="w-4 h-4 ml-1" />
+                      </Link>
+                    </div>
                   </div>
                 </div>
               </div>

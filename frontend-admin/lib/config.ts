@@ -33,5 +33,6 @@ export const API_ENDPOINTS = {
   ONLINE_PAYMENTS: '/online-payments/',
   OFFLINE_PAYMENTS: '/offline-payments/',
   COD_PAYMENTS: '/cod-payments/',
+  INVOICES: '/invoices/',
 } as const;
 

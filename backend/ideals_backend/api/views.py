@@ -9,7 +9,7 @@ from django.contrib.auth import authenticate
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
 from datetime import timedelta
-from .models import Product, Order, OrderItem, Customer, AdminUser, Category, Payment, OnlinePayment, OfflinePayment, CODPayment, Address
+from .models import Product, Order, OrderItem, Customer, AdminUser, Category, Payment, OnlinePayment, OfflinePayment, CODPayment, Address, Invoice
 from .serializers import (
     ProductSerializer, ProductListSerializer, ProductDetailSerializer,
     OrderSerializer, OrderListSerializer, OrderDetailSerializer, OrderUpdateSerializer,
@@ -175,7 +175,45 @@ class OrderViewSet(viewsets.ModelViewSet):
         serializer = OrderUpdateSerializer(order, data=request.data, partial=True)
         
         if serializer.is_valid():
-            serializer.save()
+            # Check if we need to generate invoice
+            generate_invoice = serializer.validated_data.pop('generate_invoice', False)
+            
+            # Save the order
+            order = serializer.save()
+            
+            # Generate invoice if requested
+            if generate_invoice:
+                try:
+                    from decimal import Decimal
+                    
+                    # Calculate invoice amounts
+                    subtotal = order.total
+                    tax_amount = Decimal('0.00')
+                    shipping_amount = Decimal('0.00')
+                    discount_amount = Decimal('0.00')
+                    total_amount = subtotal + tax_amount + shipping_amount - discount_amount
+                    
+                    # Create invoice
+                    invoice = Invoice.objects.create(
+                        order=order,
+                        subtotal=subtotal,
+                        tax_amount=tax_amount,
+                        shipping_amount=shipping_amount,
+                        discount_amount=discount_amount,
+                        total_amount=total_amount,
+                        status='generated'
+                    )
+                    
+                    # Update response to include invoice info
+                    response_data = serializer.data
+                    response_data['invoice_generated'] = True
+                    response_data['invoice_number'] = invoice.invoice_number
+                    return Response(response_data)
+                    
+                except Exception as e:
+                    # Continue with order update even if invoice generation fails
+                    print(f"Failed to generate invoice: {str(e)}")
+            
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -208,6 +246,50 @@ class OrderViewSet(viewsets.ModelViewSet):
         return Response({
             'message': f'Cleaned up {count} old pending orders'
         })
+
+    @action(detail=True, methods=['post'])
+    def generate_invoice(self, request, pk=None):
+        """Generate invoice for an order"""
+        from .models import Invoice
+        from decimal import Decimal
+        
+        order = self.get_object()
+        
+        # Check if invoice already exists
+        if hasattr(order, 'invoice'):
+            return Response({
+                'message': 'Invoice already exists for this order',
+                'invoice': order.invoice.invoice_number
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Calculate invoice amounts
+            subtotal = order.total
+            tax_amount = Decimal('0.00')  # You can add tax calculation logic here
+            shipping_amount = Decimal('0.00')  # You can add shipping calculation logic here
+            discount_amount = Decimal('0.00')  # You can add discount logic here
+            total_amount = subtotal + tax_amount + shipping_amount - discount_amount
+            
+            # Create invoice
+            invoice = Invoice.objects.create(
+                order=order,
+                subtotal=subtotal,
+                tax_amount=tax_amount,
+                shipping_amount=shipping_amount,
+                discount_amount=discount_amount,
+                total_amount=total_amount,
+                status='generated'
+            )
+            
+            return Response({
+                'message': 'Invoice generated successfully',
+                'invoice_number': invoice.invoice_number
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            return Response({
+                'error': f'Failed to generate invoice: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def create(self, request, *args, **kwargs):
         try:
@@ -268,6 +350,202 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response({
                 'error': str(e)
             }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class InvoiceViewSet(viewsets.ModelViewSet):
+    queryset = Invoice.objects.all()
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = None
+
+    def get_serializer_class(self):
+        from .serializers import InvoiceSerializer
+        return InvoiceSerializer
+
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        response.data = {
+            "status_code": status.HTTP_200_OK,
+            "message": "List of invoices",
+            "results": response.data
+        }
+        return response
+
+    def get_queryset(self):
+        queryset = Invoice.objects.all()
+        
+        # Filter by status
+        status_filter = self.request.query_params.get('status', None)
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        
+        # Search by invoice number or order number
+        search = self.request.query_params.get('search', None)
+        if search:
+            queryset = queryset.filter(
+                Q(invoice_number__icontains=search) |
+                Q(order__order_number__icontains=search)
+            )
+        
+        return queryset
+
+    @action(detail=True, methods=['get'])
+    def download(self, request, pk=None):
+        """Download invoice as PDF"""
+        from django.http import HttpResponse
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.units import inch
+        from io import BytesIO
+        
+        invoice = self.get_object()
+        
+        # Create PDF
+        buffer = BytesIO()
+        p = canvas.Canvas(buffer, pagesize=letter)
+        width, height = letter
+        
+        # Add company header
+        p.setFont("Helvetica-Bold", 16)
+        p.drawString(1*inch, height-1*inch, invoice.company_name)
+        
+        p.setFont("Helvetica", 10)
+        p.drawString(1*inch, height-1.2*inch, invoice.company_address)
+        p.drawString(1*inch, height-1.4*inch, f"Phone: {invoice.company_phone}")
+        p.drawString(1*inch, height-1.6*inch, f"Email: {invoice.company_email}")
+        
+        # Add invoice details
+        p.setFont("Helvetica-Bold", 14)
+        p.drawString(1*inch, height-2*inch, f"INVOICE #{invoice.invoice_number}")
+        
+        p.setFont("Helvetica", 10)
+        p.drawString(1*inch, height-2.2*inch, f"Date: {invoice.invoice_date}")
+        p.drawString(1*inch, height-2.4*inch, f"Order: {invoice.order.order_number}")
+        
+        # Add customer details
+        p.setFont("Helvetica-Bold", 12)
+        p.drawString(1*inch, height-3*inch, "Bill To:")
+        
+        p.setFont("Helvetica", 10)
+        p.drawString(1*inch, height-3.2*inch, invoice.customer_name)
+        p.drawString(1*inch, height-3.4*inch, invoice.customer_email)
+        p.drawString(1*inch, height-3.6*inch, invoice.shipping_address)
+        
+        # Add items table
+        y_position = height-4.5*inch
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(1*inch, y_position, "Item")
+        p.drawString(3*inch, y_position, "Qty")
+        p.drawString(4*inch, y_position, "Price")
+        p.drawString(5*inch, y_position, "Total")
+        
+        y_position -= 0.3*inch
+        p.line(1*inch, y_position, 6*inch, y_position)
+        y_position -= 0.2*inch
+        
+        # Add order items
+        p.setFont("Helvetica", 10)
+        for item in invoice.order.items.all():
+            p.drawString(1*inch, y_position, item.product_name)
+            p.drawString(3*inch, y_position, str(item.quantity))
+            p.drawString(4*inch, y_position, f"${item.price}")
+            p.drawString(5*inch, y_position, f"${item.total}")
+            y_position -= 0.3*inch
+        
+        # Add totals
+        y_position -= 0.2*inch
+        p.line(1*inch, y_position, 6*inch, y_position)
+        y_position -= 0.3*inch
+        
+        p.drawString(4*inch, y_position, "Subtotal:")
+        p.drawString(5*inch, y_position, f"${invoice.subtotal}")
+        y_position -= 0.2*inch
+        
+        p.drawString(4*inch, y_position, "Tax:")
+        p.drawString(5*inch, y_position, f"${invoice.tax_amount}")
+        y_position -= 0.2*inch
+        
+        p.drawString(4*inch, y_position, "Shipping:")
+        p.drawString(5*inch, y_position, f"${invoice.shipping_amount}")
+        y_position -= 0.2*inch
+        
+        p.drawString(4*inch, y_position, "Discount:")
+        p.drawString(5*inch, y_position, f"-${invoice.discount_amount}")
+        y_position -= 0.3*inch
+        
+        p.setFont("Helvetica-Bold", 12)
+        p.drawString(4*inch, y_position, "Total:")
+        p.drawString(5*inch, y_position, f"${invoice.total_amount}")
+        
+        p.showPage()
+        p.save()
+        
+        # Get PDF content
+        pdf = buffer.getvalue()
+        buffer.close()
+        
+        # Create response
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="invoice-{invoice.invoice_number}.pdf"'
+        response.write(pdf)
+        
+        return response
+
+    @action(detail=True, methods=['post'])
+    def send(self, request, pk=None):
+        """Send invoice via email"""
+        from django.core.mail import send_mail
+        from django.conf import settings
+        
+        invoice = self.get_object()
+        email = request.data.get('email', invoice.customer_email)
+        
+        try:
+            # Send email (you can customize this)
+            subject = f'Invoice #{invoice.invoice_number} for Order {invoice.order.order_number}'
+            message = f"""
+            Dear {invoice.customer_name},
+            
+            Please find attached the invoice for your order {invoice.order.order_number}.
+            
+            Invoice Number: {invoice.invoice_number}
+            Total Amount: ${invoice.total_amount}
+            
+            Thank you for your business!
+            
+            Best regards,
+            {invoice.company_name}
+            """
+            
+            # For now, just update status to sent
+            invoice.status = 'sent'
+            invoice.save()
+            
+            return Response({
+                'message': 'Invoice sent successfully'
+            })
+            
+        except Exception as e:
+            return Response({
+                'error': f'Failed to send invoice: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get'])
+    def by_order(self, request):
+        """Get invoice by order ID"""
+        order_id = request.query_params.get('order_id')
+        if not order_id:
+            return Response({
+                'error': 'order_id parameter is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            invoice = Invoice.objects.get(order_id=order_id)
+            serializer = self.get_serializer(invoice)
+            return Response(serializer.data)
+        except Invoice.DoesNotExist:
+            return Response({
+                'error': 'Invoice not found for this order'
+            }, status=status.HTTP_404_NOT_FOUND)
 
 
 class CustomerViewSet(viewsets.ModelViewSet):

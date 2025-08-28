@@ -43,6 +43,7 @@ export interface Order {
   updated_at: string;
   estimated_delivery?: string;
   tracking_number?: string;
+  invoice?: Invoice; // Related invoice
 }
 
 export interface OrderItem {
@@ -52,6 +53,30 @@ export interface OrderItem {
   quantity: number;
   price: string; // Django returns Decimal as string
   total: string; // Django returns Decimal as string
+}
+
+export interface Invoice {
+  id: number;
+  invoice_number: string;
+  order: number; // Order ID
+  subtotal: string;
+  tax_amount: string;
+  shipping_amount: string;
+  discount_amount: string;
+  total_amount: string;
+  status: 'draft' | 'generated' | 'sent' | 'paid' | 'cancelled';
+  invoice_date: string;
+  due_date?: string;
+  notes?: string;
+  terms_conditions?: string;
+  company_name: string;
+  company_address: string;
+  company_phone: string;
+  company_email: string;
+  company_gst?: string;
+  pdf_file?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface AdminUser {
@@ -168,4 +193,5 @@ export interface OrderUpdateData {
   payment_status?: Order['payment_status'];
   tracking_number?: string;
   estimated_delivery?: string;
+  generate_invoice?: boolean;
 }

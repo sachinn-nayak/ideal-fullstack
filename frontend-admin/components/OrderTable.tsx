@@ -2,18 +2,35 @@
 
 import React from 'react';
 import { Order } from '@/lib/types';
-import { FiEye, FiTruck, FiCheckCircle, FiXCircle } from 'react-icons/fi';
+import { FiEye, FiTruck, FiCheckCircle, FiXCircle, FiFileText, FiDownload, FiMail } from 'react-icons/fi';
+
+type OrderStage = 'all' | 'processing' | 'dispatch' | 'bill_generated' | 'out_for_delivery' | 'completed';
 
 interface OrderTableProps {
   orders: Order[];
   onView: (order: Order) => void;
   onUpdateStatus: (order: Order) => void;
+  onGenerateInvoice: (order: Order) => void;
+  onDownloadInvoice: (order: Order) => void;
+  onSendInvoice: (order: Order) => void;
+  stage: OrderStage;
+  stageActions: {
+    primaryAction?: string;
+    primaryStatus?: Order['status'];
+    secondaryAction?: string;
+    secondaryStatus?: Order['status'];
+  };
 }
 
 const OrderTable: React.FC<OrderTableProps> = ({
   orders,
   onView,
-  onUpdateStatus
+  onUpdateStatus,
+  onGenerateInvoice,
+  onDownloadInvoice,
+  onSendInvoice,
+  stage,
+  stageActions
 }) => {
   const getStatusBadge = (status: Order['status']) => {
     const statusConfig = {
@@ -47,41 +64,80 @@ const OrderTable: React.FC<OrderTableProps> = ({
      );
    };
 
-  const getActionButton = (order: Order) => {
-    switch (order.status) {
-      case 'pending':
-        return (
-          <button
-            onClick={() => onUpdateStatus(order)}
-            className="text-purple-600 hover:text-purple-900 p-1 rounded"
-            title="Start Processing"
-          >
-            <FiTruck className="w-4 h-4" />
-          </button>
-        );
-      case 'processing':
-        return (
-          <button
-            onClick={() => onUpdateStatus(order)}
-            className="text-indigo-600 hover:text-indigo-900 p-1 rounded"
-            title="Mark as Out for Delivery"
-          >
-            <FiTruck className="w-4 h-4" />
-          </button>
-        );
-      case 'out_for_delivery':
-        return (
-          <button
-            onClick={() => onUpdateStatus(order)}
-            className="text-green-600 hover:text-green-900 p-1 rounded"
-            title="Mark as Delivered"
-          >
-            <FiCheckCircle className="w-4 h-4" />
-          </button>
-        );
-      default:
-        return null;
+  const getActionButtons = (order: Order) => {
+    const buttons = [];
+
+    // Primary action button
+    if (stageActions.primaryAction) {
+      buttons.push(
+        <button
+          key="primary"
+          onClick={() => onUpdateStatus(order)}
+          className="text-blue-600 hover:text-blue-900 p-1 rounded"
+          title={stageActions.primaryAction}
+        >
+          {stageActions.primaryAction === 'Generate Bill' && <FiFileText className="w-4 h-4" />}
+          {stageActions.primaryAction === 'View Details' && <FiEye className="w-4 h-4" />}
+          {stageActions.primaryAction === 'Send to Dispatch' && <FiTruck className="w-4 h-4" />}
+          {stageActions.primaryAction === 'Add Delivery Details' && <FiTruck className="w-4 h-4" />}
+          {stageActions.primaryAction === 'Mark Delivered' && <FiCheckCircle className="w-4 h-4" />}
+        </button>
+      );
     }
+
+    // Secondary action button (Send to Bill Generated)
+    if (stageActions.secondaryAction === 'Send to Bill Generated') {
+      buttons.push(
+        <button
+          key="secondary"
+          onClick={() => onUpdateStatus(order)}
+          className="text-green-600 hover:text-green-900 p-1 rounded"
+          title="Send to Bill Generated"
+        >
+          <FiFileText className="w-4 h-4" />
+        </button>
+      );
+    }
+
+    // Invoice buttons for bill_generated and later stages
+    if (stage === 'bill_generated' || stage === 'out_for_delivery' || stage === 'completed') {
+      if (order.invoice) {
+        buttons.push(
+          <button
+            key="download"
+            onClick={() => onDownloadInvoice(order)}
+            className="text-purple-600 hover:text-purple-900 p-1 rounded"
+            title="Download Invoice"
+          >
+            <FiDownload className="w-4 h-4" />
+          </button>
+        );
+        buttons.push(
+          <button
+            key="send"
+            onClick={() => onSendInvoice(order)}
+            className="text-indigo-600 hover:text-indigo-900 p-1 rounded"
+            title="Send Invoice"
+          >
+            <FiMail className="w-4 h-4" />
+          </button>
+        );
+      }
+    }
+
+    // View details button (always available)
+    buttons.push(
+      <button
+        key="view"
+        onClick={() => onView(order)}
+        className="text-gray-600 hover:text-gray-900 p-1 rounded"
+        title="View Details"
+      >
+        <FiEye className="w-4 h-4" />
+      </button>
+    );
+
+    return buttons;
   };
 
   return (
@@ -107,6 +163,9 @@ const OrderTable: React.FC<OrderTableProps> = ({
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Payment
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Invoice
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Date
@@ -155,19 +214,30 @@ const OrderTable: React.FC<OrderTableProps> = ({
                                  <td className="px-6 py-4 whitespace-nowrap">
                    {getPaymentStatusBadge(order.payment_status)}
                  </td>
+                                 <td className="px-6 py-4 whitespace-nowrap">
+                   {order.invoice ? (
+                     <div className="flex items-center space-x-2">
+                       <span className="text-green-600 text-sm font-medium">
+                         {order.invoice.invoice_number}
+                       </span>
+                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                         order.invoice.status === 'generated' ? 'bg-green-100 text-green-800' :
+                         order.invoice.status === 'sent' ? 'bg-blue-100 text-blue-800' :
+                         'bg-gray-100 text-gray-800'
+                       }`}>
+                         {order.invoice.status}
+                       </span>
+                     </div>
+                   ) : (
+                     <span className="text-gray-400 text-sm">No invoice</span>
+                   )}
+                 </td>
                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                    {new Date(order.created_at).toLocaleDateString()}
                  </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <div className="flex items-center justify-end space-x-2">
-                    <button
-                      onClick={() => onView(order)}
-                      className="text-blue-600 hover:text-blue-900 p-1 rounded"
-                      title="View Details"
-                    >
-                      <FiEye className="w-4 h-4" />
-                    </button>
-                    {getActionButton(order)}
+                    {getActionButtons(order)}
                   </div>
                 </td>
               </tr>

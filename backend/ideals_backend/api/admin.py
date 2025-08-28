@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Product, Order, OrderItem, Customer, AdminUser, Category
+from .models import Product, Order, OrderItem, Customer, AdminUser, Category, ShipmentDetails
 
 
 @admin.register(Category)
@@ -43,7 +43,16 @@ class OrderAdmin(admin.ModelAdmin):
 
 @admin.register(AdminUser)
 class AdminUserAdmin(admin.ModelAdmin):
-    list_display = ['user', 'role', 'is_active', 'last_login', 'created_at']
-    list_filter = ['role', 'is_active', 'created_at']
+    list_display = ['user', 'role', 'phone', 'created_at']
+    list_filter = ['role', 'created_at']
     search_fields = ['user__username', 'user__email']
+    ordering = ['-created_at']
+
+
+@admin.register(ShipmentDetails)
+class ShipmentDetailsAdmin(admin.ModelAdmin):
+    list_display = ['order', 'shipment_method', 'driver_name', 'tracking_number', 'shipment_status', 'estimated_delivery']
+    list_filter = ['shipment_method', 'shipment_status', 'created_at']
+    search_fields = ['order__order_number', 'driver_name', 'tracking_number']
+    readonly_fields = ['created_at', 'updated_at']
     ordering = ['-created_at']

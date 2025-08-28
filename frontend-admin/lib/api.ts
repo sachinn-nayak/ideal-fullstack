@@ -1,4 +1,4 @@
-import { Product, Order, DashboardStats, ProductFormData, OrderUpdateData, Payment, OnlinePayment, OfflinePayment, CODPayment } from './types';
+import { Product, Order, DashboardStats, ProductFormData, OrderUpdateData, Payment, OnlinePayment, OfflinePayment, CODPayment, Invoice } from './types';
 import api from './axios';
 import { API_ENDPOINTS } from './config';
 
@@ -119,6 +119,40 @@ export const ordersAPI = {
   updateStatus: async (id: number, data: OrderUpdateData): Promise<Order> => {
     const response = await api.patch(`${API_ENDPOINTS.ORDERS}${id}/update_status/`, data);
     return response.data;
+  },
+
+  generateInvoice: async (id: number): Promise<Invoice> => {
+    const response = await api.post(`${API_ENDPOINTS.ORDERS}${id}/generate_invoice/`);
+    return response.data;
+  }
+};
+
+export const invoicesAPI = {
+  getAll: async (): Promise<Invoice[]> => {
+    const response = await api.get(API_ENDPOINTS.INVOICES);
+    return response.data.results || response.data;
+  },
+
+  getById: async (id: number): Promise<Invoice> => {
+    const response = await api.get(`${API_ENDPOINTS.INVOICES}${id}/`);
+    return response.data;
+  },
+
+  getByOrder: async (orderId: number): Promise<Invoice> => {
+    const response = await api.get(`${API_ENDPOINTS.INVOICES}order/${orderId}/`);
+    return response.data;
+  },
+
+  downloadPDF: async (id: number): Promise<Blob> => {
+    const response = await api.get(`${API_ENDPOINTS.INVOICES}${id}/download/`, {
+      responseType: 'blob'
+    });
+    return response.data;
+  },
+
+  sendInvoice: async (id: number, email?: string): Promise<void> => {
+    const data = email ? { email } : {};
+    await api.post(`${API_ENDPOINTS.INVOICES}${id}/send/`, data);
   }
 };
 
