@@ -3,21 +3,37 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { FiArrowRight, FiStar } from 'react-icons/fi';
-import { mockProducts } from '@/lib/api';
+import { productsAPI, transformProduct, mockProducts } from '@/lib/api';
 import ProductCard from '@/components/ProductCard';
 import Loader from '@/components/Loader';
+import { Product } from '@/lib/types';
 
 export default function HomePage() {
-  const [featuredProducts, setFeaturedProducts] = useState(mockProducts.slice(0, 4));
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Simulate loading
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 1000);
+    const fetchFeaturedProducts = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // Try to fetch from backend first
+        const backendProducts = await productsAPI.getFeatured();
+        const transformedProducts = backendProducts.map(transformProduct);
+        setFeaturedProducts(transformedProducts);
+      } catch (err) {
+        console.error('Failed to fetch from backend, using mock data:', err);
+        setError('Unable to load products from server');
+        // Fallback to mock data
+        setFeaturedProducts(mockProducts);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    return () => clearTimeout(timer);
+    fetchFeaturedProducts();
   }, []);
 
   if (loading) {
@@ -114,13 +130,24 @@ export default function HomePage() {
             <p className="text-gray-600 max-w-2xl mx-auto">
               Discover our most popular Apple accessories and devices with exclusive pricing.
             </p>
+            {error && (
+              <p className="text-orange-600 text-sm mt-2">
+                {error} - Showing sample products
+              </p>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          {featuredProducts.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {featuredProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-gray-500">No featured products available</p>
+            </div>
+          )}
 
           <div className="text-center mt-12">
             <Link
@@ -147,17 +174,22 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {['iPhone', 'MacBook', 'iPad', 'Apple Watch'].map((category) => (
+            {[
+              { name: 'Mobile', category: 'mobile', icon: '📱' },
+              { name: 'Laptop', category: 'laptop', icon: '💻' },
+              { name: 'Watch', category: 'watch', icon: '⌚' },
+              { name: 'Headset', category: 'headset', icon: '🎧' }
+            ].map((cat) => (
               <Link
-                key={category}
-                href={`/products?category=${category}`}
+                key={cat.category}
+                href={`/products?category=${cat.category}`}
                 className="group bg-gray-50 rounded-xl p-6 text-center hover:bg-blue-50 transition-colors"
               >
                 <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-200 transition-colors">
-                  <span className="text-2xl font-bold text-blue-600">{category.charAt(0)}</span>
+                  <span className="text-2xl">{cat.icon}</span>
                 </div>
                 <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
-                  {category}
+                  {cat.name}
                 </h3>
               </Link>
             ))}

@@ -21,19 +21,18 @@ const ProductForm: React.FC<ProductFormProps> = ({
     name: '',
     description: '',
     price: 0,
+    wholesale_price: 0,
     category: 'mobile',
     stock: 0,
-    specifications: {
-      brand: '',
-      model: '',
-      color: '',
-      storage: '',
-      ram: '',
-      battery: '',
-      connectivity: ''
-    },
+    brand: '',
+    model: '',
+    color: '',
+    storage: '',
+    ram: '',
+    battery: '',
+    connectivity: '',
     image: '',
-    isActive: true
+    is_active: true
   });
 
   useEffect(() => {
@@ -41,12 +40,19 @@ const ProductForm: React.FC<ProductFormProps> = ({
       setFormData({
         name: product.name,
         description: product.description,
-        price: product.price,
+        price: parseFloat(product.price),
+        wholesale_price: product.wholesale_price ? parseFloat(product.wholesale_price) : 0,
         category: product.category,
         stock: product.stock,
-        specifications: { ...product.specifications },
-        image: product.image,
-        isActive: product.isActive
+        brand: product.brand,
+        model: product.model,
+        color: product.color,
+        storage: product.storage || '',
+        ram: product.ram || '',
+        battery: product.battery || '',
+        connectivity: product.connectivity || '',
+        image: product.images ? product.images.join('\n') : '',
+        is_active: product.is_active
       });
     }
   }, [product]);
@@ -58,15 +64,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
     }));
   };
 
-  const handleSpecificationChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      specifications: {
-        ...prev.specifications,
-        [field]: value
-      }
-    }));
-  };
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,13 +117,14 @@ const ProductForm: React.FC<ProductFormProps> = ({
               >
                 <option value="mobile">Mobile</option>
                 <option value="laptop">Laptop</option>
-                <option value="headphones">Headphones</option>
+                <option value="watch">Watch</option>
+                <option value="headset">Headset</option>
               </select>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Price ($) *
+                Retail Price ($) *
               </label>
               <input
                 type="number"
@@ -136,6 +135,21 @@ const ProductForm: React.FC<ProductFormProps> = ({
                 onChange={(e) => handleInputChange('price', parseFloat(e.target.value) || 0)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="0.00"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Wholesale Price ($)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={formData.wholesale_price || ''}
+                onChange={(e) => handleInputChange('wholesale_price', parseFloat(e.target.value) || 0)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="0.00 (optional)"
               />
             </div>
 
@@ -170,125 +184,120 @@ const ProductForm: React.FC<ProductFormProps> = ({
             />
           </div>
 
-          {/* Image URL */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Image URL
-            </label>
-            <div className="flex space-x-2">
-              <input
-                type="url"
-                value={formData.image}
-                onChange={(e) => handleInputChange('image', e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="https://example.com/image.jpg"
-              />
-              <button
-                type="button"
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <FiUpload className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+                     {/* Images */}
+           <div>
+             <label className="block text-sm font-medium text-gray-700 mb-2">
+               Image URLs (one per line)
+             </label>
+             <textarea
+               value={formData.image}
+               onChange={(e) => handleInputChange('image', e.target.value)}
+               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+               placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg&#10;https://example.com/image3.jpg"
+               rows={4}
+             />
+             <p className="text-sm text-gray-500 mt-1">
+               Enter multiple image URLs, one per line. First image will be the main product image.
+             </p>
+           </div>
 
           {/* Specifications */}
           <div className="border-t border-gray-200 pt-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Specifications</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Brand *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.specifications.brand}
-                  onChange={(e) => handleSpecificationChange('brand', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="e.g., Apple"
-                />
-              </div>
+                             <div>
+                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                   Brand *
+                 </label>
+                 <input
+                   type="text"
+                   required
+                   value={formData.brand}
+                   onChange={(e) => handleInputChange('brand', e.target.value)}
+                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                   placeholder="e.g., Apple"
+                 />
+               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Model *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.specifications.model}
-                  onChange={(e) => handleSpecificationChange('model', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="e.g., iPhone 15 Pro"
-                />
-              </div>
+               <div>
+                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                   Model *
+                 </label>
+                 <input
+                   type="text"
+                   required
+                   value={formData.model}
+                   onChange={(e) => handleInputChange('model', e.target.value)}
+                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                   placeholder="e.g., iPhone 15 Pro"
+                 />
+               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Color *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.specifications.color}
-                  onChange={(e) => handleSpecificationChange('color', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="e.g., Natural Titanium"
-                />
-              </div>
+               <div>
+                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                   Color *
+                 </label>
+                 <input
+                   type="text"
+                   required
+                   value={formData.color}
+                   onChange={(e) => handleInputChange('color', e.target.value)}
+                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                   placeholder="e.g., Natural Titanium"
+                 />
+               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Storage
-                </label>
-                <input
-                  type="text"
-                  value={formData.specifications.storage || ''}
-                  onChange={(e) => handleSpecificationChange('storage', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="e.g., 128GB"
-                />
-              </div>
+               <div>
+                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                   Storage
+                 </label>
+                 <input
+                   type="text"
+                   value={formData.storage || ''}
+                   onChange={(e) => handleInputChange('storage', e.target.value)}
+                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                   placeholder="e.g., 128GB"
+                 />
+               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  RAM
-                </label>
-                <input
-                  type="text"
-                  value={formData.specifications.ram || ''}
-                  onChange={(e) => handleSpecificationChange('ram', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="e.g., 8GB"
-                />
-              </div>
+               <div>
+                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                   RAM
+                 </label>
+                 <input
+                   type="text"
+                   value={formData.ram || ''}
+                   onChange={(e) => handleInputChange('ram', e.target.value)}
+                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                   placeholder="e.g., 8GB"
+                 />
+               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Battery
-                </label>
-                <input
-                  type="text"
-                  value={formData.specifications.battery || ''}
-                  onChange={(e) => handleSpecificationChange('battery', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="e.g., Up to 23 hours"
-                />
-              </div>
+               <div>
+                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                   Battery
+                 </label>
+                 <input
+                   type="text"
+                   value={formData.battery || ''}
+                   onChange={(e) => handleInputChange('battery', e.target.value)}
+                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                   placeholder="e.g., Up to 23 hours"
+                 />
+               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Connectivity
-                </label>
-                <input
-                  type="text"
-                  value={formData.specifications.connectivity || ''}
-                  onChange={(e) => handleSpecificationChange('connectivity', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="e.g., 5G, Wi-Fi 6"
-                />
-              </div>
+               <div>
+                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                   Connectivity
+                 </label>
+                 <input
+                   type="text"
+                   value={formData.connectivity || ''}
+                   onChange={(e) => handleInputChange('connectivity', e.target.value)}
+                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                   placeholder="e.g., 5G, Wi-Fi 6"
+                 />
+               </div>
             </div>
           </div>
 
@@ -296,12 +305,12 @@ const ProductForm: React.FC<ProductFormProps> = ({
           <div className="flex items-center space-x-3">
             <input
               type="checkbox"
-              id="isActive"
-              checked={formData.isActive}
-              onChange={(e) => handleInputChange('isActive', e.target.checked)}
+              id="is_active"
+              checked={formData.is_active}
+              onChange={(e) => handleInputChange('is_active', e.target.checked)}
               className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
             />
-            <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
+            <label htmlFor="is_active" className="text-sm font-medium text-gray-700">
               Product is active and available for purchase
             </label>
           </div>

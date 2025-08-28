@@ -22,10 +22,14 @@ const OrdersPage = () => {
     try {
       setLoading(true);
       const data = await ordersAPI.getAll();
-      setOrders(data);
-    } catch (error) {
-      toast.error('Failed to load orders');
+      console.log('Orders data received:', data);
+      // Ensure data is always an array
+      setOrders(Array.isArray(data) ? data : []);
+    } catch (error: any) {
+      const errorMessage = error.message || 'Failed to load orders';
+      toast.error(errorMessage);
       console.error('Error loading orders:', error);
+      setOrders([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
@@ -72,7 +76,7 @@ const OrdersPage = () => {
     }
   };
 
-     const filteredOrders = orders.filter(order => {
+     const filteredOrders = (Array.isArray(orders) ? orders : []).filter(order => {
      const matchesSearch = order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           order.customer_email.toLowerCase().includes(searchTerm.toLowerCase());
@@ -83,11 +87,11 @@ const OrdersPage = () => {
    });
 
   const getStatusCount = (status: Order['status']) => {
-    return orders.filter(order => order.status === status).length;
+    return (Array.isArray(orders) ? orders : []).filter(order => order.status === status).length;
   };
 
      const getPaymentCount = (status: Order['payment_status']) => {
-     return orders.filter(order => order.payment_status === status).length;
+     return (Array.isArray(orders) ? orders : []).filter(order => order.payment_status === status).length;
    };
 
   if (loading) {
@@ -163,11 +167,11 @@ const OrdersPage = () => {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
           <div className="flex items-center">
             <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
-              <span className="text-blue-600 font-semibold">{orders.length}</span>
+              <span className="text-blue-600 font-semibold">{Array.isArray(orders) ? orders.length : 0}</span>
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600">Total Orders</p>
-              <p className="text-lg font-semibold text-gray-900">{orders.length}</p>
+              <p className="text-lg font-semibold text-gray-900">{Array.isArray(orders) ? orders.length : 0}</p>
             </div>
           </div>
         </div>

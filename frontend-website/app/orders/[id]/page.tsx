@@ -3,8 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuth } from '@/context/AuthContext';
-import { ordersAPI, mockProducts } from '@/lib/api';
+import { authAPI, ordersAPI } from '@/lib/api';
 import { FiArrowLeft, FiPackage, FiTruck, FiCheckCircle, FiClock, FiMapPin } from 'react-icons/fi';
 import Loader from '@/components/Loader';
 import EmptyState from '@/components/EmptyState';
@@ -12,34 +11,36 @@ import EmptyState from '@/components/EmptyState';
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const [user, setUser] = useState<any>(null);
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchOrder = async () => {
-      if (user && params.id) {
-        try {
+      try {
+        const currentUser = authAPI.getCurrentUser();
+        const isAuth = authAPI.isAuthenticated();
+        
+        if (isAuth && currentUser && params.id) {
+          setUser(currentUser);
           const orderData = await ordersAPI.getOrderById(params.id as string);
           setOrder(orderData);
-        } catch (error) {
-          console.error('Failed to fetch order:', error);
-        } finally {
-          setLoading(false);
         }
-      } else {
+      } catch (error) {
+        console.error('Failed to fetch order:', error);
+      } finally {
         setLoading(false);
       }
     };
 
     fetchOrder();
-  }, [user, params.id]);
+  }, [params.id]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'delivered':
         return 'bg-green-100 text-green-800';
-      case 'shipped':
+      case 'out_for_delivery':
         return 'bg-blue-100 text-blue-800';
       case 'processing':
         return 'bg-yellow-100 text-yellow-800';
@@ -54,16 +55,15 @@ export default function OrderDetailPage() {
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
-  const getProductName = (productId: number) => {
-    const product = mockProducts.find(p => p.id === productId);
-    return product ? product.name : 'Product not found';
+  const getProductName = (productName: string) => {
+    return productName || 'Product not found';
   };
 
   const getTrackingSteps = (status: string) => {
     const steps = [
       { name: 'Order Placed', status: 'completed', icon: FiCheckCircle },
-      { name: 'Processing', status: status === 'processing' || status === 'shipped' || status === 'delivered' ? 'completed' : 'pending', icon: FiClock },
-      { name: 'Shipped', status: status === 'shipped' || status === 'delivered' ? 'completed' : 'pending', icon: FiTruck },
+      { name: 'Processing', status: status === 'processing' || status === 'out_for_delivery' || status === 'delivered' ? 'completed' : 'pending', icon: FiClock },
+      { name: 'Out for Delivery', status: status === 'out_for_delivery' || status === 'delivered' ? 'completed' : 'pending', icon: FiTruck },
       { name: 'Delivered', status: status === 'delivered' ? 'completed' : 'pending', icon: FiPackage }
     ];
     return steps;
@@ -195,7 +195,7 @@ export default function OrderDetailPage() {
                     </div>
                     <div className="flex-1">
                       <h3 className="font-medium text-gray-900">
-                        {getProductName(item.productId)}
+                        {getProductName(item.product_name)}
                       </h3>
                       <p className="text-sm text-gray-600">
                         Quantity: {item.quantity}
@@ -203,10 +203,10 @@ export default function OrderDetailPage() {
                     </div>
                     <div className="text-right">
                       <p className="font-medium text-gray-900">
-                        ${(item.quantity * item.price).toFixed(2)}
+                        ₹{(item.quantity * parseFloat(item.price)).toFixed(2)}
                       </p>
                       <p className="text-sm text-gray-600">
-                        ${item.price.toFixed(2)} each
+                        ₹{parseFloat(item.price).toFixed(2)} each
                       </p>
                     </div>
                   </div>
@@ -222,13 +222,13 @@ export default function OrderDetailPage() {
                 <FiMapPin className="w-5 h-5 text-gray-400 mt-1" />
                 <div>
                   <p className="text-gray-900">
-                    {order.address?.street || 'Address not available'}
+                    {order.shipping_address?.street_address || order.shipping_address_text || 'Address not available'}
                   </p>
                   <p className="text-gray-600">
-                    {order.address?.city}, {order.address?.state} {order.address?.zipCode}
+                    {order.shipping_city}, {order.shipping_state} {order.shipping_zip_code}
                   </p>
                   <p className="text-gray-600">
-                    {order.address?.country}
+                    {order.shipping_country}
                   </p>
                 </div>
               </div>
@@ -244,27 +244,27 @@ export default function OrderDetailPage() {
               <div className="space-y-4 mb-6">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Order ID</span>
-                  <span className="font-medium">#{order.id}</span>
+                  <span className="font-medium">#{order.order_number}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Order Date</span>
                   <span className="font-medium">
-                    {new Date(order.orderDate).toLocaleDateString()}
+                    {new Date(order.created_at).toLocaleDateString()}
                   </span>
                 </div>
-                {order.deliveryDate && (
+                {order.estimated_delivery && (
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Delivery Date</span>
+                    <span className="text-gray-600">Estimated Delivery</span>
                     <span className="font-medium">
-                      {new Date(order.deliveryDate).toLocaleDateString()}
+                      {new Date(order.estimated_delivery).toLocaleDateString()}
                     </span>
                   </div>
                 )}
-                {order.trackingNumber && (
+                {order.tracking_number && (
                   <div className="flex justify-between">
                     <span className="text-gray-600">Tracking</span>
                     <span className="font-medium text-blue-600">
-                      {order.trackingNumber}
+                      {order.tracking_number}
                     </span>
                   </div>
                 )}
@@ -274,7 +274,7 @@ export default function OrderDetailPage() {
               <div className="space-y-3 border-t border-gray-200 pt-4">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Subtotal</span>
-                  <span className="font-medium">${order.total.toFixed(2)}</span>
+                  <span className="font-medium">₹{parseFloat(order.total).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Shipping</span>
@@ -282,13 +282,13 @@ export default function OrderDetailPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Tax</span>
-                  <span className="font-medium">${(order.total * 0.08).toFixed(2)}</span>
+                  <span className="font-medium">₹{(parseFloat(order.total) * 0.08).toFixed(2)}</span>
                 </div>
                 <div className="border-t border-gray-200 pt-3">
                   <div className="flex justify-between">
                     <span className="text-lg font-semibold text-gray-900">Total</span>
                     <span className="text-lg font-bold text-gray-900">
-                      ${(order.total * 1.08).toFixed(2)}
+                      ₹{(parseFloat(order.total) * 1.08).toFixed(2)}
                     </span>
                   </div>
                 </div>

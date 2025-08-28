@@ -4,14 +4,14 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
-import { useAuth } from '@/context/AuthContext';
+import { authAPI } from '@/lib/api';
 import Loader from '@/components/Loader';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, loading } = useAuth();
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    email: '',
+    username: '',
     password: '',
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -29,10 +29,8 @@ export default function LoginPage() {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.email) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Email is invalid';
+    if (!formData.username) {
+      newErrors.username = 'Username is required';
     }
 
     if (!formData.password) {
@@ -50,11 +48,18 @@ export default function LoginPage() {
     
     if (!validateForm()) return;
 
+    setLoading(true);
     try {
-      await login(formData.email, formData.password);
+      await authAPI.login(formData.username, formData.password);
       router.push('/');
-    } catch (error) {
-      // Error is handled by the auth context
+    } catch (error: any) {
+      if (error.response?.data?.error) {
+        setErrors({ general: error.response.data.error });
+      } else {
+        setErrors({ general: 'Login failed. Please try again.' });
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -71,32 +76,37 @@ export default function LoginPage() {
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {errors.general && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-sm text-red-600">{errors.general}</p>
+            </div>
+          )}
           <div className="space-y-4">
-            {/* Email Field */}
+            {/* Username Field */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email address
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+                Username
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <FiMail className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
+                  id="username"
+                  name="username"
+                  type="text"
+                  autoComplete="username"
                   required
-                  value={formData.email}
+                  value={formData.username}
                   onChange={handleChange}
                   className={`appearance-none relative block w-full pl-10 pr-3 py-3 border ${
-                    errors.email ? 'border-red-300' : 'border-gray-300'
+                    errors.username ? 'border-red-300' : 'border-gray-300'
                   } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm`}
-                  placeholder="Enter your email"
+                  placeholder="Enter your username"
                 />
               </div>
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+              {errors.username && (
+                <p className="mt-1 text-sm text-red-600">{errors.username}</p>
               )}
             </div>
 
@@ -140,12 +150,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="text-sm">
-              <span className="text-gray-600">Demo credentials: </span>
-              <span className="text-gray-900 font-medium">demo@example.com / password123</span>
-            </div>
-          </div>
+      
 
           <div>
             <button

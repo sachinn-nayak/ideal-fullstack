@@ -2,35 +2,36 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useAuth } from '@/context/AuthContext';
-import { ordersAPI, mockProducts } from '@/lib/api';
+import { authAPI, ordersAPI } from '@/lib/api';
 import { FiPackage, FiCalendar, FiDollarSign, FiArrowRight } from 'react-icons/fi';
 import Loader from '@/components/Loader';
 import EmptyState from '@/components/EmptyState';
 
 export default function OrdersPage() {
-  const { user } = useAuth();
+  const [user, setUser] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchOrders = async () => {
-      if (user) {
-        try {
-          const userOrders = await ordersAPI.getOrders(user.id);
+      try {
+        const currentUser = authAPI.getCurrentUser();
+        const isAuth = authAPI.isAuthenticated();
+        
+        if (isAuth && currentUser) {
+          setUser(currentUser);
+          const userOrders = await ordersAPI.getUserOrders();
           setOrders(userOrders);
-        } catch (error) {
-          console.error('Failed to fetch orders:', error);
-        } finally {
-          setLoading(false);
         }
-      } else {
+      } catch (error) {
+        console.error('Failed to fetch orders:', error);
+      } finally {
         setLoading(false);
       }
     };
 
     fetchOrders();
-  }, [user]);
+  }, []);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -51,9 +52,8 @@ export default function OrdersPage() {
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
-  const getProductName = (productId: number) => {
-    const product = mockProducts.find(p => p.id === productId);
-    return product ? product.name : 'Product not found';
+  const getProductName = (productName: string) => {
+    return productName || 'Product not found';
   };
 
   if (loading) {
@@ -124,16 +124,16 @@ export default function OrdersPage() {
                       </div>
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900">
-                          Order #{order.id}
+                          Order #{order.order_number}
                         </h3>
                         <div className="flex items-center space-x-4 text-sm text-gray-600">
                           <div className="flex items-center">
                             <FiCalendar className="w-4 h-4 mr-1" />
-                            <span>{new Date(order.orderDate).toLocaleDateString()}</span>
+                            <span>{new Date(order.created_at).toLocaleDateString()}</span>
                           </div>
                           <div className="flex items-center">
                             <FiDollarSign className="w-4 h-4 mr-1" />
-                            <span>${order.total.toFixed(2)}</span>
+                            <span>₹{order.total}</span>
                           </div>
                         </div>
                       </div>
@@ -146,38 +146,45 @@ export default function OrdersPage() {
                   </div>
                 </div>
 
-                {/* Order Items */}
-                <div className="p-6">
-                  <div className="space-y-4">
-                    {order.items.map((item: any, index: number) => (
-                      <div key={index} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0">
-                        <div className="flex items-center space-x-4">
-                          <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                            <span className="text-gray-500 text-xs">Img</span>
-                          </div>
-                          <div>
-                            <p className="font-medium text-gray-900">
-                              {getProductName(item.productId)}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              Qty: {item.quantity} × ${item.price.toFixed(2)}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium text-gray-900">
-                            ${(item.quantity * item.price).toFixed(2)}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                                 {/* Order Items */}
+                 <div className="p-6">
+                   <div className="space-y-4">
+                     {order.items && order.items.length > 0 ? (
+                       order.items.map((item: any, index: number) => (
+                         <div key={index} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0">
+                           <div className="flex items-center space-x-4">
+                             <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                               <span className="text-gray-500 text-xs">Img</span>
+                             </div>
+                             <div>
+                               <p className="font-medium text-gray-900">
+                                 {getProductName(item.product_name)}
+                               </p>
+                               <p className="text-sm text-gray-600">
+                                 Qty: {item.quantity} × ₹{item.price}
+                               </p>
+                             </div>
+                           </div>
+                           <div className="text-right">
+                             <p className="font-medium text-gray-900">
+                               ₹{(item.quantity * item.price).toFixed(2)}
+                             </p>
+                           </div>
+                         </div>
+                       ))
+                     ) : (
+                       <div className="text-center py-4 text-gray-500">
+                         <p>Items: {order.items_count || 0} product(s)</p>
+                         <p className="text-sm">Click "View Details" to see full order information</p>
+                       </div>
+                     )}
+                   </div>
 
                   {/* Order Actions */}
                   <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between">
                     <div className="text-sm text-gray-600">
-                      {order.trackingNumber && (
-                        <p>Tracking: {order.trackingNumber}</p>
+                      {order.tracking_number && (
+                        <p>Tracking: {order.tracking_number}</p>
                       )}
                     </div>
                     <Link

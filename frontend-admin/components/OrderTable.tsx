@@ -18,14 +18,13 @@ const OrderTable: React.FC<OrderTableProps> = ({
   const getStatusBadge = (status: Order['status']) => {
     const statusConfig = {
       pending: { color: 'bg-yellow-100 text-yellow-800', icon: '⏳' },
-      paid: { color: 'bg-blue-100 text-blue-800', icon: '💰' },
       processing: { color: 'bg-purple-100 text-purple-800', icon: '⚙️' },
-      shipped: { color: 'bg-indigo-100 text-indigo-800', icon: '📦' },
+      out_for_delivery: { color: 'bg-indigo-100 text-indigo-800', icon: '📦' },
       delivered: { color: 'bg-green-100 text-green-800', icon: '✅' },
       cancelled: { color: 'bg-red-100 text-red-800', icon: '❌' }
     };
 
-    const config = statusConfig[status];
+    const config = statusConfig[status] || statusConfig.pending;
     return (
       <span className={`px-2 py-1 text-xs font-medium rounded-full ${config.color}`}>
         {config.icon} {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -36,11 +35,11 @@ const OrderTable: React.FC<OrderTableProps> = ({
      const getPaymentStatusBadge = (status: Order['payment_status']) => {
      const statusConfig = {
        pending: { color: 'bg-yellow-100 text-yellow-800', icon: '⏳' },
-       paid: { color: 'bg-green-100 text-green-800', icon: '✅' },
+       verified: { color: 'bg-green-100 text-green-800', icon: '✅' },
        failed: { color: 'bg-red-100 text-red-800', icon: '❌' }
      };
 
-     const config = statusConfig[status];
+     const config = statusConfig[status] || statusConfig.pending;
      return (
        <span className={`px-2 py-1 text-xs font-medium rounded-full ${config.color}`}>
          {config.icon} {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -50,7 +49,7 @@ const OrderTable: React.FC<OrderTableProps> = ({
 
   const getActionButton = (order: Order) => {
     switch (order.status) {
-      case 'paid':
+      case 'pending':
         return (
           <button
             onClick={() => onUpdateStatus(order)}
@@ -65,12 +64,12 @@ const OrderTable: React.FC<OrderTableProps> = ({
           <button
             onClick={() => onUpdateStatus(order)}
             className="text-indigo-600 hover:text-indigo-900 p-1 rounded"
-            title="Mark as Shipped"
+            title="Mark as Out for Delivery"
           >
             <FiTruck className="w-4 h-4" />
           </button>
         );
-      case 'shipped':
+      case 'out_for_delivery':
         return (
           <button
             onClick={() => onUpdateStatus(order)}

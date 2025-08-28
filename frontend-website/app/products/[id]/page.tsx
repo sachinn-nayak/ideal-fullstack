@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FiStar, FiArrowLeft, FiShoppingCart, FiTruck, FiShield, FiRotateCcw } from 'react-icons/fi';
-import { mockProducts } from '@/lib/api';
+import { productsAPI, transformProduct } from '@/lib/api';
 import { useCart } from '@/context/CartContext';
 import Loader from '@/components/Loader';
 import EmptyState from '@/components/EmptyState';
@@ -16,18 +16,30 @@ export default function ProductDetailPage() {
   
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
 
   useEffect(() => {
-    // Simulate loading
-    const timer = setTimeout(() => {
-      const foundProduct = mockProducts.find(p => p.id === Number(params.id));
-      setProduct(foundProduct);
-      setLoading(false);
-    }, 800);
+    const fetchProduct = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const productId = Number(params.id);
+        const backendProduct = await productsAPI.getById(productId);
+        const transformedProduct = transformProduct(backendProduct);
+        setProduct(transformedProduct);
+      } catch (err) {
+        console.error('Error fetching product:', err);
+        setError('Failed to load product details');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    return () => clearTimeout(timer);
+    if (params.id) {
+      fetchProduct();
+    }
   }, [params.id]);
 
   const handleAddToCart = () => {
@@ -50,14 +62,14 @@ export default function ProductDetailPage() {
     );
   }
 
-  if (!product) {
+  if (error || !product) {
     return (
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <EmptyState
             type="products"
-            title="Product not found"
-            description="The product you're looking for doesn't exist."
+            title={error || "Product not found"}
+            description="The product you're looking for doesn't exist or couldn't be loaded."
             action={
               <Link
                 href="/products"
@@ -75,6 +87,12 @@ export default function ProductDetailPage() {
   const discountPercentage = Math.round(
     ((product.originalPrice - product.price) / product.originalPrice) * 100
   );
+
+  // Get images from backend product data
+  const backendProduct = product.backendData || product;
+  const productImages = backendProduct.images && backendProduct.images.length > 0 
+    ? backendProduct.images 
+    : [product.image];
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -95,29 +113,48 @@ export default function ProductDetailPage() {
             {/* Product Images */}
             <div className="space-y-4">
               <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
-                <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
-                  <span className="text-gray-500 text-lg">Product Image</span>
+                {productImages && productImages.length > 0 ? (
+                  <img
+                    src={productImages[selectedImage] || productImages[0]}
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                    }}
+                  />
+                ) : null}
+                <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center hidden">
+                  <span className="text-gray-500 text-lg">No Image Available</span>
                 </div>
               </div>
               
               {/* Thumbnail Images */}
-              <div className="grid grid-cols-4 gap-2">
-                {[1, 2, 3, 4].map((index) => (
-                  <button
-                    key={index}
-                    onClick={() => setSelectedImage(index - 1)}
-                    className={`aspect-square rounded-lg border-2 transition-colors ${
-                      selectedImage === index - 1
-                        ? 'border-blue-500'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
-                      <span className="text-gray-500 text-xs">Img {index}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
+              {productImages && productImages.length > 1 && (
+                <div className="grid grid-cols-4 gap-2">
+                  {productImages.map((image: string, index: number) => (
+                    <button
+                      key={index}
+                      onClick={() => setSelectedImage(index)}
+                      className={`aspect-square rounded-lg border-2 transition-colors overflow-hidden ${
+                        selectedImage === index
+                          ? 'border-blue-500'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <img
+                        src={image}
+                        alt={`${product.name} - Image ${index + 1}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.parentElement!.innerHTML = '<div class="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center"><span class="text-gray-500 text-xs">Img</span></div>';
+                        }}
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Product Info */}

@@ -187,7 +187,7 @@ const AddProductPage = () => {
           </>
         );
       
-      case 'headphones':
+      case 'headset':
         return (
           <>
             <div>
@@ -275,7 +275,7 @@ const AddProductPage = () => {
                 >
                   <option value="mobile">Mobile</option>
                   <option value="laptop">Laptop</option>
-                  <option value="headphones">Headphones</option>
+                  <option value="headset">Headphones</option>
                 </select>
               </div>
             </div>

@@ -3,10 +3,12 @@ export interface Product {
   name: string;
   description: string;
   price: string; // Django returns Decimal as string
-  category: 'mobile' | 'laptop' | 'headphones';
-  image: string;
+  wholesale_price?: string; // Django returns Decimal as string
+  category: 'mobile' | 'laptop' | 'watch' | 'headset';
+  images: string[]; // Array of image URLs
   stock: number;
   is_active: boolean;
+  is_deleted: boolean;
   created_at: string;
   updated_at: string;
   
@@ -27,8 +29,11 @@ export interface Order {
   customer_email: string;
   items: OrderItem[];
   total: string; // Django returns Decimal as string
-  status: 'pending' | 'paid' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  payment_status: 'pending' | 'paid' | 'failed';
+  status: 'pending' | 'processing' | 'out_for_delivery' | 'delivered' | 'cancelled';
+  payment_status: 'pending' | 'verified' | 'failed';
+  payment_method: 'online' | 'offline' | 'cod';
+  advance_amount: string; // For COD orders
+  advance_verified: boolean; // For COD advance verification
   shipping_address: string;
   shipping_city: string;
   shipping_state: string;
@@ -58,12 +63,25 @@ export interface AdminUser {
   last_login?: string;
 }
 
-export interface DashboardStats {
+export interface DashboardStatsData {
   total_products: number;
   total_orders: number;
+  total_customers: number;
   total_revenue: string; // Django returns Decimal as string
+  online_revenue: string;
+  offline_revenue: string;
+  cod_revenue: string;
   pending_orders: number;
+  delivered_orders: number;
+  cancelled_orders: number;
+  verified_payments: number;
+  pending_payments: number;
+  failed_payments: number;
   low_stock_products: number;
+}
+
+export interface DashboardStats {
+  stats: DashboardStatsData;
   recent_orders: Order[];
   top_products: {
     product_id: number;
@@ -77,7 +95,8 @@ export interface ProductFormData {
   name: string;
   description: string;
   price: number;
-  category: 'mobile' | 'laptop' | 'headphones';
+  wholesale_price?: number;
+  category: 'mobile' | 'laptop' | 'watch' | 'headset';
   stock: number;
   brand: string;
   model: string;
@@ -88,6 +107,60 @@ export interface ProductFormData {
   connectivity?: string;
   image: string;
   is_active: boolean;
+}
+
+export interface Payment {
+  id: number;
+  payment_id: string;
+  order: number; // Order ID
+  order_number: string;
+  customer_name: string;
+  amount: string; // Django returns Decimal as string
+  payment_method: 'online' | 'offline' | 'cod';
+  payment_status: 'pending' | 'verified' | 'failed';
+  transaction_id?: string;
+  screenshot?: string;
+  advance_amount?: string;
+  verified_by?: number;
+  verified_at?: string;
+  created_at: string;
+  updated_at: string;
+  
+  // Related payment details
+  online_payment?: OnlinePayment;
+  offline_payment?: OfflinePayment;
+  cod_payment?: CODPayment;
+}
+
+export interface OnlinePayment {
+  id: number;
+  payment: number; // Payment ID
+  transaction_id: string;
+  gateway: string;
+  gateway_response: any;
+  refund_id?: string;
+  refund_amount?: string;
+  refund_status: 'pending' | 'processed' | 'failed';
+}
+
+export interface OfflinePayment {
+  id: number;
+  payment: number; // Payment ID
+  screenshot: string;
+  bank_name?: string;
+  account_number?: string;
+  transaction_reference?: string;
+  notes?: string;
+}
+
+export interface CODPayment {
+  id: number;
+  payment: number; // Payment ID
+  advance_amount: string;
+  advance_verified: boolean;
+  advance_screenshot?: string;
+  delivery_charges: string;
+  notes?: string;
 }
 
 export interface OrderUpdateData {

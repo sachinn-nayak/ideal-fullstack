@@ -19,9 +19,11 @@ const Dashboard = () => {
     try {
       setLoading(true);
       const data = await dashboardAPI.getStats();
+      console.log('Dashboard stats received:', data);
       setStats(data);
-    } catch (error) {
-      toast.error('Failed to load dashboard stats');
+    } catch (error: any) {
+      const errorMessage = error.message || 'Failed to load dashboard stats';
+      toast.error(errorMessage);
       console.error('Error loading dashboard stats:', error);
     } finally {
       setLoading(false);
@@ -36,7 +38,7 @@ const Dashboard = () => {
     );
   }
 
-  if (!stats) {
+  if (!stats || !stats.stats) {
     return (
       <div className="text-center py-12">
         <p className="text-gray-500">Failed to load dashboard data</p>
@@ -56,7 +58,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                  <StatsCard
            title="Total Products"
-           value={stats.total_products}
+           value={stats.stats.total_products}
            change="+12%"
            changeType="positive"
            icon={FiPackage}
@@ -64,7 +66,7 @@ const Dashboard = () => {
          />
          <StatsCard
            title="Total Orders"
-           value={stats.total_orders}
+           value={stats.stats.total_orders}
            change="+8%"
            changeType="positive"
            icon={FiShoppingCart}
@@ -72,7 +74,7 @@ const Dashboard = () => {
          />
          <StatsCard
            title="Total Revenue"
-           value={`$${parseFloat(stats.total_revenue).toLocaleString()}`}
+           value={`$${parseFloat(stats.stats.total_revenue).toLocaleString()}`}
            change="+15%"
            changeType="positive"
            icon={FiDollarSign}
@@ -80,7 +82,7 @@ const Dashboard = () => {
          />
          <StatsCard
            title="Pending Orders"
-           value={stats.pending_orders}
+           value={stats.stats.pending_orders}
            change="+3"
            changeType="neutral"
            icon={FiAlertTriangle}
@@ -99,24 +101,30 @@ const Dashboard = () => {
             </button>
           </div>
                      <div className="space-y-4">
-             {stats.recent_orders.map((order) => (
-               <div key={order.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                 <div>
-                   <p className="font-medium text-gray-900">{order.order_number}</p>
-                   <p className="text-sm text-gray-500">{order.customer_name}</p>
+             {Array.isArray(stats.recent_orders) && stats.recent_orders.length > 0 ? (
+               stats.recent_orders.map((order) => (
+                 <div key={order.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                   <div>
+                     <p className="font-medium text-gray-900">{order.order_number}</p>
+                     <p className="text-sm text-gray-500">{order.customer_name}</p>
+                   </div>
+                   <div className="text-right">
+                     <p className="font-medium text-gray-900">${parseFloat(order.total).toFixed(2)}</p>
+                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                       order.status === 'paid' ? 'bg-green-100 text-green-800' :
+                       order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                       'bg-gray-100 text-gray-800'
+                     }`}>
+                       {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                     </span>
+                   </div>
                  </div>
-                 <div className="text-right">
-                   <p className="font-medium text-gray-900">${parseFloat(order.total).toFixed(2)}</p>
-                   <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                     order.status === 'paid' ? 'bg-green-100 text-green-800' :
-                     order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                     'bg-gray-100 text-gray-800'
-                   }`}>
-                     {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                   </span>
-                 </div>
+               ))
+             ) : (
+               <div className="text-center py-8">
+                 <p className="text-gray-500">No recent orders</p>
                </div>
-             ))}
+             )}
            </div>
         </div>
 
@@ -129,23 +137,29 @@ const Dashboard = () => {
             </button>
           </div>
                      <div className="space-y-4">
-             {stats.top_products.map((product, index) => (
-               <div key={product.product_id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                 <div className="flex items-center">
-                   <span className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium mr-3">
-                     {index + 1}
-                   </span>
-                   <div>
-                     <p className="font-medium text-gray-900">{product.product_name}</p>
-                     <p className="text-sm text-gray-500">{product.total_sold} sold</p>
+             {Array.isArray(stats.top_products) && stats.top_products.length > 0 ? (
+               stats.top_products.map((product, index) => (
+                 <div key={product.product_id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                   <div className="flex items-center">
+                     <span className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium mr-3">
+                       {index + 1}
+                     </span>
+                     <div>
+                       <p className="font-medium text-gray-900">{product.product_name}</p>
+                       <p className="text-sm text-gray-500">{product.total_sold} sold</p>
+                     </div>
+                   </div>
+                   <div className="text-right">
+                     <p className="font-medium text-gray-900">${parseFloat(product.revenue).toLocaleString()}</p>
+                     <p className="text-sm text-gray-500">Revenue</p>
                    </div>
                  </div>
-                 <div className="text-right">
-                   <p className="font-medium text-gray-900">${parseFloat(product.revenue).toLocaleString()}</p>
-                   <p className="text-sm text-gray-500">Revenue</p>
-                 </div>
+               ))
+             ) : (
+               <div className="text-center py-8">
+                 <p className="text-gray-500">No top products data</p>
                </div>
-             ))}
+             )}
            </div>
         </div>
       </div>

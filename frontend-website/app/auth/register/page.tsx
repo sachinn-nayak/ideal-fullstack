@@ -4,17 +4,22 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FiMail, FiLock, FiUser, FiEye, FiEyeOff } from 'react-icons/fi';
-import { useAuth } from '@/context/AuthContext';
+import { authAPI } from '@/lib/api';
 import Loader from '@/components/Loader';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { register, loading } = useAuth();
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
+    username: '',
     name: '',
     email: '',
     password: '',
-    confirmPassword: '',
+    password2: '',
+    first_name: '',
+    last_name: '',
+    phone: '',
+    address: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -32,10 +37,16 @@ export default function RegisterPage() {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
+    if (!formData.username.trim()) {
+      newErrors.username = 'Username is required';
+    } else if (formData.username.trim().length < 3) {
+      newErrors.username = 'Username must be at least 3 characters';
+    }
+
     if (!formData.name.trim()) {
-      newErrors.name = 'Name is required';
+      newErrors.name = 'Full name is required';
     } else if (formData.name.trim().length < 2) {
-      newErrors.name = 'Name must be at least 2 characters';
+      newErrors.name = 'Full name must be at least 2 characters';
     }
 
     if (!formData.email) {
@@ -50,10 +61,10 @@ export default function RegisterPage() {
       newErrors.password = 'Password must be at least 6 characters';
     }
 
-    if (!formData.confirmPassword) {
-      newErrors.confirmPassword = 'Please confirm your password';
-    } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
+    if (!formData.password2) {
+      newErrors.password2 = 'Please confirm your password';
+    } else if (formData.password !== formData.password2) {
+      newErrors.password2 = 'Passwords do not match';
     }
 
     setErrors(newErrors);
@@ -65,11 +76,30 @@ export default function RegisterPage() {
     
     if (!validateForm()) return;
 
+    setLoading(true);
     try {
-      await register(formData.email, formData.password, formData.name);
+      await authAPI.register(formData);
       router.push('/');
-    } catch (error) {
-      // Error is handled by the auth context
+    } catch (error: any) {
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        const newErrors: Record<string, string> = {};
+        
+        // Handle field-specific errors
+        Object.keys(errorData).forEach(key => {
+          if (Array.isArray(errorData[key])) {
+            newErrors[key] = errorData[key][0];
+          } else {
+            newErrors[key] = errorData[key];
+          }
+        });
+        
+        setErrors(newErrors);
+      } else {
+        setErrors({ general: 'Registration failed. Please try again.' });
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -86,7 +116,40 @@ export default function RegisterPage() {
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {errors.general && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-sm text-red-600">{errors.general}</p>
+            </div>
+          )}
           <div className="space-y-4">
+            {/* Username Field */}
+            <div>
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+                Username
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <FiUser className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  id="username"
+                  name="username"
+                  type="text"
+                  autoComplete="username"
+                  required
+                  value={formData.username}
+                  onChange={handleChange}
+                  className={`appearance-none relative block w-full pl-10 pr-3 py-3 border ${
+                    errors.username ? 'border-red-300' : 'border-gray-300'
+                  } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm`}
+                  placeholder="Enter your username"
+                />
+              </div>
+              {errors.username && (
+                <p className="mt-1 text-sm text-red-600">{errors.username}</p>
+              )}
+            </div>
+
             {/* Name Field */}
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
@@ -184,7 +247,7 @@ export default function RegisterPage() {
 
             {/* Confirm Password Field */}
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="password2" className="block text-sm font-medium text-gray-700 mb-1">
                 Confirm Password
               </label>
               <div className="relative">
@@ -192,15 +255,15 @@ export default function RegisterPage() {
                   <FiLock className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
-                  id="confirmPassword"
-                  name="confirmPassword"
+                  id="password2"
+                  name="password2"
                   type={showConfirmPassword ? 'text' : 'password'}
                   autoComplete="new-password"
                   required
-                  value={formData.confirmPassword}
+                  value={formData.password2}
                   onChange={handleChange}
                   className={`appearance-none relative block w-full pl-10 pr-10 py-3 border ${
-                    errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
+                    errors.password2 ? 'border-red-300' : 'border-gray-300'
                   } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm`}
                   placeholder="Confirm your password"
                 />
@@ -216,8 +279,8 @@ export default function RegisterPage() {
                   )}
                 </button>
               </div>
-              {errors.confirmPassword && (
-                <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
+              {errors.password2 && (
+                <p className="mt-1 text-sm text-red-600">{errors.password2}</p>
               )}
             </div>
           </div>

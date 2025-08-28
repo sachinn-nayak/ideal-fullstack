@@ -1,17 +1,14 @@
 // API Configuration
 export const API_CONFIG = {
   // Get API URL from environment variable, fallback to default
-  BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api',
+  BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api',
   
   // Authentication
   AUTH: {
     USERNAME: process.env.NEXT_PUBLIC_AUTH_USERNAME || 'admin',
     PASSWORD: process.env.NEXT_PUBLIC_AUTH_PASSWORD || 'admin123',
   },
-  
 
-
-  
   // Timeout settings
   TIMEOUT: 10000,
   
@@ -32,5 +29,9 @@ export const API_ENDPOINTS = {
   CUSTOMERS: '/customers/',
   DASHBOARD: '/dashboard/stats/',
   CATEGORIES: '/categories/',
+  PAYMENTS: '/payments/',
+  ONLINE_PAYMENTS: '/online-payments/',
+  OFFLINE_PAYMENTS: '/offline-payments/',
+  COD_PAYMENTS: '/cod-payments/',
 } as const;
 

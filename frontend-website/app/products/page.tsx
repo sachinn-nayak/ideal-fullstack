@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { FiSearch, FiFilter, FiGrid, FiList } from 'react-icons/fi';
-import { mockProducts } from '@/lib/api';
+import { productsAPI, transformProduct } from '@/lib/api';
 import ProductCard from '@/components/ProductCard';
 import Loader from '@/components/Loader';
 import EmptyState from '@/components/EmptyState';
@@ -12,23 +12,35 @@ export default function ProductsPage() {
   const searchParams = useSearchParams();
   const categoryFilter = searchParams.get('category');
   
-  const [products, setProducts] = useState(mockProducts);
-  const [filteredProducts, setFilteredProducts] = useState(mockProducts);
+  const [products, setProducts] = useState<any[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(categoryFilter || '');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState<'name' | 'price' | 'rating'>('name');
 
-  const categories = ['All', 'iPhone', 'MacBook', 'iPad', 'Apple Watch', 'Headphones'];
+  const categories = ['All', 'mobile', 'laptop', 'watch', 'headset'];
 
   useEffect(() => {
-    // Simulate loading
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 800);
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const backendProducts = await productsAPI.getAll();
+        const transformedProducts = backendProducts.map(transformProduct);
+        setProducts(transformedProducts);
+        setFilteredProducts(transformedProducts);
+      } catch (err) {
+        console.error('Error fetching products:', err);
+        setError('Failed to load products');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    return () => clearTimeout(timer);
+    fetchProducts();
   }, []);
 
   useEffect(() => {
@@ -80,6 +92,28 @@ export default function ProductsPage() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <EmptyState
+            type="error"
+            title="Failed to load products"
+            description={error}
+            action={
+              <button
+                onClick={() => window.location.reload()}
+                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Try Again
+              </button>
+            }
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -122,7 +156,11 @@ export default function ProductsPage() {
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  {category}
+                  {category === 'All' ? 'All' : 
+                   category === 'mobile' ? 'Mobiles' :
+                   category === 'laptop' ? 'Laptops' :
+                   category === 'watch' ? 'Watches' :
+                   category === 'headset' ? 'Headphones' : category}
                 </button>
               ))}
             </div>

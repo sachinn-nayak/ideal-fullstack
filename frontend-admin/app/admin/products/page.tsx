@@ -24,10 +24,14 @@ const ProductsPage = () => {
     try {
       setLoading(true);
       const data = await productsAPI.getAll();
-      setProducts(data);
-    } catch (error) {
-      toast.error('Failed to load products');
+      console.log('Products data received:', data);
+      // Ensure data is always an array
+      setProducts(Array.isArray(data) ? data : []);
+    } catch (error: any) {
+      const errorMessage = error.message || 'Failed to load products';
+      toast.error(errorMessage);
       console.error('Error loading products:', error);
+      setProducts([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
@@ -47,16 +51,16 @@ const ProductsPage = () => {
   };
 
   const handleEdit = (product: Product) => {
-    // Navigate to edit page or open modal
-    toast.info('Edit functionality will be implemented');
+    // Navigate to edit page
+    router.push(`/admin/products/edit/${product.id}`);
   };
 
   const handleView = (product: Product) => {
-    // Navigate to view page or open modal
-    toast.info('View functionality will be implemented');
+    // Navigate to view page
+    router.push(`/admin/products/${product.id}`);
   };
 
-  const filteredProducts = products.filter(product => {
+  const filteredProducts = (Array.isArray(products) ? products : []).filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
@@ -114,7 +118,7 @@ const ProductsPage = () => {
             <option value="all">All Categories</option>
             <option value="mobile">Mobile</option>
             <option value="laptop">Laptop</option>
-            <option value="headphones">Headphones</option>
+            <option value="headset">Headphones</option>
           </select>
 
           <select
